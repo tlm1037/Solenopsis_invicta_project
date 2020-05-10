@@ -1,0 +1,137 @@
+# Image (Ubuntu 18.04 Devel and Docker) was initilzed on jetstream with a m1.large instance 
+# Once active the image was updated 
+sudo apt-get update
+
+
+# Image was upgraded 
+sudo apt-get upgrade
+
+# Install Salmon
+wget https://github.com/COMBINE-lab/salmon/releases/download/v1.1.0/salmon-1.1.0_linux_x86_64.tar.gz
+
+# Unpack tarball
+tar xzvf salmon-1.1.0_linux_x86_64.tar.gz
+
+
+# Export to $PATH
+export PATH=$PATH:$HOME/salmon-latest_linux_x86_64/bin
+
+
+# Download sra toolkit 
+wget http://ftp-trace.ncbi.nlm.nih.gov/sra/sdk/2.10.3/sratoolkit.2.10.3-ubuntu64.tar.gz
+
+# Unpack tarball 
+tar xzvf sratoolkit.2.10.3-ubuntu64.tar.gz
+
+# Export to $PATH
+export PATH=$PATH:$HOME/sratoolkit.2.10.3-ubuntu64/bin
+
+
+# Configure sra toolkit
+vdb-config --interactive
+
+# Save changes within sra toolkit terminal
+s 
+o
+x
+
+
+# Make new directory and move into it
+mkdir finalants
+cd finalants
+
+# Download read data
+fasterq-dump SRR6375990 
+fasterq-dump SRR6375989
+fasterq-dump SRR6376006
+fasterq-dump SRR6376005
+
+# Download assembly to map to
+curl -LO ftp://ftp.ensemblgenomes.org/pub/metazoa/release-47/fasta/solenopsis_invicta/pep/Solenopsis_invicta.Si_gnG.pep.all.fa.gz  -O ant.fasta
+
+# Unzip downloaded data
+gzip -d Solenopsis_invicta.Si_gnG.pep.all.fa.gz
+
+
+# Index the transciptome 
+salmon index --transcripts ant.fasta --index finalants_index -k 31
+
+# Map first virgin queen read to the index (single pair)
+salmon quant -p 10 -i finalants_index --seqBias --gcBias -l a \
+-r SRR6375990.fastq -o firstvirgin_output
+
+
+# Install R 
+sudo apt-get install r-base
+
+#Install gdebi-core package 
+sudo apt-get install gdebi-core
+
+# Download r studio 
+wget https://download2.rstudio.org/server/trusty/amd64/rstudio-server-1.2.5033-amd64.deb
+
+# Install r studio 
+sudo gdebi rstudio-server-1.2.5033-amd64.deb
+
+# Find r studio web address and enter the address into browser
+echo My RStudio Web server is running at: http://$(hostname):8787/
+
+# Log into R studio with assigned username and password 
+
+
+# In the R studio set the working directory to the one being used in your terminal 
+setwd("finalants")
+
+# Read data into R 
+exp <- read.table("firstvirgin_output/quant.sf", header = T)
+
+# Subset first 100 lines of your dataset into a seperate file, exp2 
+exp2 <- head(exp, 100)
+
+# Create a scatter plot 
+plot(exp2$Length, exp2$TPM)
+
+# Add a trendline and save scatter plot 
+abline(lm(TPM ~ Length, data = exp2), col = "blue")
+
+
+# Download the second virign queen read data
+fasterq-dump SRR6375989
+
+# Map second virgin queen read to index
+salmon quant -p 10 -i finalants_index --seqBias --gcBias -l a \
+-r SRR6375989 -o secondvirgin_output
+
+
+# Repeat steps to add new read into R studio 
+exp <- read.table("secondvirgin_output/quant.sf", header = T)
+exp2 <- head(exp, 100)
+plot(exp2$Length, exp2$TPM)
+abline(lm(TPM ~ Length, data = exp2), col = "blue") # Save new scatter plot 
+
+# Download the first mated queen read data
+fasterq-dump SRR6376006
+
+
+# Map first mated queen read to index
+salmon quant -p 10 -i finalants_index --seqBias --gcBias -l a \
+-r SRR6376006 -o firstmated_output
+
+# Repeat steps to add new read into R studio 
+exp <- read.table("firstmated_output/quant.sf", header = T)
+exp2 <- head(exp, 100)
+plot(exp2$Length, exp2$TPM)
+abline(lm(TPM ~ Length, data = exp2), col = "blue") # Save new scatter plot 
+
+# Download second mated queen read data
+fasterq-dump SRR6376005
+
+# Map seond mated queen read data
+salmon quant -p 10 -i finalants_index --seqBias --gcBias -l a \
+-r SRR6376005 -o secondmated_output
+
+# Repeat steps to add new read into R studio 
+exp <- read.table("secondmated_output/quant.sf", header = T)
+exp2 <- head(exp, 100)
+plot(exp2$Length, exp2$TPM)
+abline(lm(TPM ~ Length, data = exp2), col = "blue") # Save new scatter plot
